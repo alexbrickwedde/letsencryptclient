@@ -1,6 +1,7 @@
 package org.jawese;
 
 import java.io.File;
+import java.io.FileInputStream;
 import java.io.FileOutputStream;
 import java.io.FileReader;
 import java.io.FileWriter;
@@ -8,16 +9,21 @@ import java.io.IOException;
 import java.net.URI;
 import java.security.KeyPair;
 import java.security.KeyStore;
+import java.security.KeyStoreException;
+import java.security.NoSuchAlgorithmException;
 import java.security.PrivateKey;
+import java.security.UnrecoverableEntryException;
+import java.security.cert.Certificate;
+import java.security.cert.CertificateException;
 import java.security.cert.X509Certificate;
 import java.util.Collection;
+import java.util.Enumeration;
 import java.util.HashMap;
 import java.util.List;
 
 import org.shredzone.acme4j.Account;
 import org.shredzone.acme4j.AccountBuilder;
 import org.shredzone.acme4j.Authorization;
-import org.shredzone.acme4j.Certificate;
 import org.shredzone.acme4j.Order;
 import org.shredzone.acme4j.Session;
 import org.shredzone.acme4j.Status;
@@ -102,7 +108,7 @@ public class LetsEncryptClient {
         }
 
         // Get the certificate
-        Certificate certificate = order.getCertificate();
+        org.shredzone.acme4j.Certificate certificate = order.getCertificate();
 
         System.out.println("Success! The certificate for domains has been generated!");
 
@@ -263,4 +269,25 @@ public class LetsEncryptClient {
         }
         return null;
     }
+
+    public static long getCertValidUntil(File cert, String pass) throws KeyStoreException, NoSuchAlgorithmException,
+            CertificateException, IOException, UnrecoverableEntryException {
+        FileInputStream keyFile = new FileInputStream(cert);
+        String defaultType = KeyStore.getDefaultType();
+        KeyStore keyStore = KeyStore.getInstance(defaultType);
+        keyStore.load(keyFile, pass.toCharArray());
+
+        Enumeration<String> es = keyStore.aliases();
+        String alias = "";
+        while (es.hasMoreElements()) {
+            alias = (String) es.nextElement();
+            if (keyStore.isKeyEntry(alias)) {
+                Certificate[] chain = keyStore.getCertificateChain(alias);
+                X509Certificate xcert = (X509Certificate) chain[0];
+                return xcert.getNotAfter().getTime();
+            }
+        }
+        return 0;
+    }
+
 }
